@@ -99,9 +99,11 @@ module ActsAsTenant
             raise ActsAsTenant::Errors::NoTenantSet
           end
           if ActsAsTenant.current_tenant
-            keys = [ActsAsTenant.current_tenant.id]
-            keys.push(nil) if options[:has_global_records]
-            where(fkey.to_sym => keys)
+            if options[:scope_for_parent] == 'true' && ActsAsTenant.current_tenant.child?
+              where(tenant_id: ActsAsTenant.current_tenant.parent_id)
+            else
+              where(tenant_id: ActsAsTenant.current_tenant.id)
+            end
           else
             Rails::VERSION::MAJOR < 4 ? scoped : all
           end
@@ -187,13 +189,13 @@ module ActsAsTenant
               if instance.new_record?
                 unless self.class.where(fkey.to_sym => [nil, instance[fkey]],
                                         field.to_sym => instance[field]).empty?
-                  errors.add(field, 'has already been taken') 
+                  errors.add(field, 'has already been taken')
                 end
               else
                 unless self.class.where(fkey.to_sym => [nil, instance[fkey]],
                                         field.to_sym => instance[field])
                                  .where.not(:id => instance.id).empty?
-                  errors.add(field, 'has already been taken') 
+                  errors.add(field, 'has already been taken')
                 end
 
               end
