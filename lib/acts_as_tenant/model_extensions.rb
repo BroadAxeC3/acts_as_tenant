@@ -94,20 +94,17 @@ module ActsAsTenant
         fkey = valid_options[:foreign_key] || ActsAsTenant.fkey
         belongs_to tenant, valid_options
 
-        if ActsAsTenant.current_tenant
-         key_for_tenant_in_scope =
-           if options[:scope_for_parent] == 'true' && ActsAsTenant.current_tenant.child?
-             ActsAsTenant.current_tenant.parent_id
-           else
-             ActsAsTenant.current_tenant.id
-           end
-        end
-
         default_scope lambda {
           if ActsAsTenant.configuration.require_tenant && ActsAsTenant.current_tenant.nil? && !ActsAsTenant.unscoped?
             raise ActsAsTenant::Errors::NoTenantSet
           end
           if ActsAsTenant.current_tenant
+            key_for_tenant_in_scope =
+              if options[:scope_for_parent] == 'true' && ActsAsTenant.current_tenant.child?
+                ActsAsTenant.current_tenant.parent_id
+              else
+                ActsAsTenant.current_tenant.id
+              end
             keys = [key_for_tenant_in_scope]
             keys.push(nil) if options[:has_global_records]
             where(fkey.to_sym => keys)
@@ -122,6 +119,12 @@ module ActsAsTenant
         #
         before_validation Proc.new {|m|
           if ActsAsTenant.current_tenant
+            key_for_tenant_in_scope =
+              if options[:scope_for_parent] == 'true' && ActsAsTenant.current_tenant.child?
+                ActsAsTenant.current_tenant.parent_id
+              else
+                ActsAsTenant.current_tenant.id
+              end
             m.send "#{fkey}=".to_sym, key_for_tenant_in_scope
           end
         }, :on => :create
