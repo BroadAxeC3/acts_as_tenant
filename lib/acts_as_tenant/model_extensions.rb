@@ -99,7 +99,13 @@ module ActsAsTenant
             raise ActsAsTenant::Errors::NoTenantSet
           end
           if ActsAsTenant.current_tenant
-            keys = [ActsAsTenant.current_tenant.id]
+            key_for_tenant_in_scope =
+              if options[:scope_for_parent] == 'true' && ActsAsTenant.current_tenant.child?
+                ActsAsTenant.current_tenant.parent_id
+              else
+                ActsAsTenant.current_tenant.id
+              end
+            keys = [key_for_tenant_in_scope]
             keys.push(nil) if options[:has_global_records]
             where(fkey.to_sym => keys)
           else
@@ -113,7 +119,13 @@ module ActsAsTenant
         #
         before_validation Proc.new {|m|
           if ActsAsTenant.current_tenant
-            m.send "#{fkey}=".to_sym, ActsAsTenant.current_tenant.id
+            key_for_tenant_in_scope =
+              if options[:scope_for_parent] == 'true' && ActsAsTenant.current_tenant.child?
+                ActsAsTenant.current_tenant.parent_id
+              else
+                ActsAsTenant.current_tenant.id
+              end
+            m.send "#{fkey}=".to_sym, key_for_tenant_in_scope
           end
         }, :on => :create
 
@@ -187,13 +199,13 @@ module ActsAsTenant
               if instance.new_record?
                 unless self.class.where(fkey.to_sym => [nil, instance[fkey]],
                                         field.to_sym => instance[field]).empty?
-                  errors.add(field, 'has already been taken') 
+                  errors.add(field, 'has already been taken')
                 end
               else
                 unless self.class.where(fkey.to_sym => [nil, instance[fkey]],
                                         field.to_sym => instance[field])
                                  .where.not(:id => instance.id).empty?
-                  errors.add(field, 'has already been taken') 
+                  errors.add(field, 'has already been taken')
                 end
 
               end
